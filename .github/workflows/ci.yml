@@ -49,7 +49,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Install just
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2
         with:
           tool: just
 
