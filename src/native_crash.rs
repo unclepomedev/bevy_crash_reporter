@@ -3,8 +3,8 @@ use std::path::Path;
 
 /// Installs an out-of-process native crash handler.
 ///
-/// - Call this as the very first thing in `main`, before creating the
-///   `bevy::App`. Keep the returned guard alive for the app's lifetime.
+/// - Call this before any other significant startup work. Keep the
+///   returned guard alive for the app's lifetime.
 /// - `on_minidump` runs in a separate watcher process and receives the
 ///   minidump bytes when the app crashes natively.
 /// - Returns `Err` if the watcher process could not be spawned.

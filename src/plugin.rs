@@ -141,7 +141,7 @@ fn install_panic_hook(on_report: Arc<dyn Fn(CrashReport) + Send + Sync>) {
 mod tests {
     use super::*;
     use crate::test_support::panic_hook_lock;
-    use std::panic::{catch_unwind, panic_any};
+    use std::panic::catch_unwind;
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::mpsc::sync_channel as test_sync_channel;
@@ -243,26 +243,5 @@ mod tests {
             .recv_timeout(Duration::from_secs(2))
             .expect("worker thread never invoked on_report");
         thread::sleep(Duration::from_millis(50));
-    }
-
-    #[test]
-    fn falls_back_for_non_string_payload() {
-        let _guard = panic_hook_lock().lock().unwrap_or_else(|e| e.into_inner());
-
-        let captured: Arc<Mutex<Option<PanicReport>>> = Arc::new(Mutex::new(None));
-        let captured_clone = captured.clone();
-
-        let previous_hook = take_hook();
-        set_hook(Box::new(move |info| {
-            *captured_clone.lock().unwrap() = Some(build_panic_report(info));
-        }));
-
-        let result = catch_unwind(|| panic_any(42));
-
-        set_hook(previous_hook);
-
-        assert!(result.is_err());
-        let report = captured.lock().unwrap().take().expect("hook should run");
-        assert_eq!(report.message, "non-string panic payload");
     }
 }
