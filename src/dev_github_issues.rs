@@ -4,7 +4,7 @@ use std::time::Duration;
 
 const DEFAULT_BASE_URL: &str = "https://api.github.com";
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
-const USER_AGENT: &str = "bevy_crash_reporter";
+const USER_AGENT: &str = "bevy_crash_capture";
 /// GitHub issue titles are capped at 256 chars; leave headroom for the
 /// "panic: " prefix and an ellipsis.
 const TITLE_MESSAGE_LIMIT: usize = 200;
@@ -64,7 +64,7 @@ impl DevGitHubIssuesReporter {
         }
 
         if let Err(err) = self.create_issue(&report) {
-            eprintln!("bevy_crash_reporter: failed to create GitHub issue: {err}");
+            eprintln!("bevy_crash_capture: failed to create GitHub issue: {err}");
         }
     }
 

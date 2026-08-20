@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 const REPORT_QUEUE_CAPACITY: usize = 16;
-const WORKER_THREAD_NAME: &str = "bevy_crash_reporter-worker";
+const WORKER_THREAD_NAME: &str = "bevy_crash_capture-worker";
 
 type ReportCallback = Arc<dyn Fn(CrashReport) + Send + Sync>;
 
@@ -55,12 +55,12 @@ fn spawn_worker() -> SyncSender<CrashReport> {
                 let subscribers = CALLBACKS.lock().unwrap_or_else(|e| e.into_inner()).clone();
                 for callback in subscribers {
                     if catch_unwind(AssertUnwindSafe(|| callback(report.clone()))).is_err() {
-                        eprintln!("bevy_crash_reporter: on_report callback panicked");
+                        eprintln!("bevy_crash_capture: on_report callback panicked");
                     }
                 }
             }
         })
-        .expect("failed to spawn bevy_crash_reporter worker thread");
+        .expect("failed to spawn bevy_crash_capture worker thread");
 
     sender
 }
