@@ -9,7 +9,7 @@ Catches panics and native crashes (SEH/segfault) in Bevy games.
 
 ```rust
 use bevy::prelude::*;
-use bevy_crash_reporter::{CrashReport, CrashReporterPlugin};
+use bevy_crash_capture::{CrashReport, CrashReporterPlugin};
 
 fn main() {
     App::new()
@@ -33,7 +33,7 @@ Route `on_report` to whatever you already trust: your own backend, Sentry, a log
 By default, `CrashReporterPlugin` panics on startup if it can't spawn the watcher process. Use `NativeCaptureFailurePolicy::Continue` to keep the game running without native crash capture instead (Rust panics are still reported):
 
 ```rust
-use bevy_crash_reporter::{CrashReporterPlugin, NativeCaptureFailurePolicy};
+use bevy_crash_capture::{CrashReporterPlugin, NativeCaptureFailurePolicy};
 
 CrashReporterPlugin::new(on_report)
     .with_native_capture_failure_policy(NativeCaptureFailurePolicy::Continue);
@@ -44,7 +44,7 @@ CrashReporterPlugin::new(on_report)
 `features = ["github-issues"]` adds `DevGitHubIssuesReporter`, which files a GitHub Issue per crash. **Local development only** — the token ships inside the binary if you pass it as a literal, so never bundle this into a build you distribute to players.
 
 ```rust
-use bevy_crash_reporter::DevGitHubIssuesReporter;
+use bevy_crash_capture::DevGitHubIssuesReporter;
 
 let reporter = DevGitHubIssuesReporter::new("your-org", "your-repo", github_token);
 CrashReporterPlugin::new(move |report| reporter.notify(report));
