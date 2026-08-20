@@ -1,5 +1,6 @@
 use bevy_app::App;
 use bevy_crash_reporter::{CrashReport, CrashReporterPlugin};
+use std::hint::black_box;
 use std::{env, fs, ptr};
 
 fn main() {
@@ -14,8 +15,9 @@ fn main() {
         }
     }));
 
-    #[allow(deref_nullptr)]
+    let invalid_addr = black_box(1usize);
+    let invalid_ptr = invalid_addr as *mut u8;
     unsafe {
-        *ptr::null_mut() = 1u8;
+        ptr::write_volatile(invalid_ptr, 1);
     }
 }
