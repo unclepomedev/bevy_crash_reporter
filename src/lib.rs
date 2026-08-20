@@ -4,7 +4,7 @@ mod plugin;
 
 pub use native_crash::install_native_crash_capture;
 pub use panic_report::{PanicLocation, PanicReport};
-pub use plugin::{CrashReport, CrashReporterPlugin};
+pub use plugin::{CrashReport, CrashReporterPlugin, NativeCaptureFailurePolicy};
 
 // ============================================================================================
 // TEST UTILS

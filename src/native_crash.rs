@@ -10,13 +10,7 @@ use std::path::Path;
 /// - Returns `Err` if the watcher process could not be spawned.
 pub fn install_native_crash_capture<F>(on_minidump: F) -> Result<ClientHandle, Error>
 where
-    F: Fn(&[u8], &Path) + Send + Sync + 'static,
+    F: Fn(Vec<u8>, &Path) + Send + Sync + 'static,
 {
-    // minidumper_child re-execs the current binary as a "watcher" process;
-    // in that process this function never returns. That's why "before creating bevy::App".
-    MinidumperChild::new()
-        .on_minidump(move |buffer: Vec<u8>, path: &Path| {
-            on_minidump(&buffer, path);
-        })
-        .spawn()
+    MinidumperChild::new().on_minidump(on_minidump).spawn()
 }
