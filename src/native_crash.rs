@@ -14,7 +14,7 @@ where
     F: Fn(&[u8], &Path) + Send + Sync + 'static,
 {
     // minidumper_child re-execs the current binary as a "watcher" process;
-    // in that process this function never returns. That's why "before creating bevy::App"
+    // in that process this function never returns. That's why "before creating bevy::App".
     minidumper_child::MinidumperChild::new()
         .on_minidump(move |buffer: Vec<u8>, path: &Path| {
             on_minidump(&buffer, path);
