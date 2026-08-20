@@ -22,7 +22,7 @@ tempfile = "3"
 [features]
 default = []
 github-issues = ["dep:ureq", "dep:serde"]
-confirm-dialog = ["dep:rfd"]
+confirm-dialog = ["github-issues", "dep:rfd"]
 
 [[bin]]
 name = "bevy_crash_trigger"

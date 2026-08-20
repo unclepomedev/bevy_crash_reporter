@@ -1,7 +1,9 @@
 use crate::{CrashReport, PanicReport};
 use serde::Serialize;
+use std::time::Duration;
 
 const DEFAULT_BASE_URL: &str = "https://api.github.com";
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 const USER_AGENT: &str = "bevy_crash_reporter";
 /// GitHub issue titles are capped at 256 chars; leave headroom for the
 /// "panic: " prefix and an ellipsis.
@@ -13,6 +15,7 @@ pub struct GitHubIssuesReporter {
     repo: String,
     token: String,
     base_url: String,
+    timeout: Duration,
     #[cfg(feature = "confirm-dialog")]
     require_confirmation: bool,
 }
@@ -28,6 +31,7 @@ impl GitHubIssuesReporter {
             repo: repo.into(),
             token: token.into(),
             base_url: DEFAULT_BASE_URL.to_string(),
+            timeout: DEFAULT_TIMEOUT,
             #[cfg(feature = "confirm-dialog")]
             require_confirmation: false,
         }
@@ -36,6 +40,12 @@ impl GitHubIssuesReporter {
     /// Overrides the GitHub API base URL, for pointing at a local mock in tests.
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = base_url.into();
+        self
+    }
+
+    /// Overrides the HTTP request timeout.
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
         self
     }
 
@@ -65,6 +75,9 @@ impl GitHubIssuesReporter {
             self.base_url, self.owner, self.repo
         );
         ureq::post(&url)
+            .config()
+            .timeout_global(Some(self.timeout))
+            .build()
             .header("Authorization", &format!("Bearer {}", self.token))
             .header("Accept", "application/vnd.github+json")
             .header("User-Agent", USER_AGENT)
@@ -245,5 +258,37 @@ mod tests {
             location: None,
         }));
         assert!(payload.title.chars().count() <= TITLE_MESSAGE_LIMIT + "panic: …".chars().count());
+    }
+
+    #[test]
+    fn times_out_when_endpoint_does_not_respond() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind mock server");
+        let addr = listener.local_addr().unwrap();
+
+        let _handle = thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut buf = [0u8; 1024];
+                let _ = stream.read(&mut buf);
+                // Do not send any response; sleep to keep connection open
+                thread::sleep(Duration::from_secs(2));
+            }
+        });
+
+        let reporter = GitHubIssuesReporter::new("owner", "repo", "test-token")
+            .with_base_url(format!("http://{addr}"))
+            .with_timeout(Duration::from_millis(100));
+
+        let report = CrashReport::Panic(PanicReport {
+            message: "timeout test".to_string(),
+            location: None,
+        });
+
+        let start = std::time::Instant::now();
+        let result = reporter.create_issue(&report);
+        let elapsed = start.elapsed();
+
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), ureq::Error::Timeout(_)));
+        assert!(elapsed < Duration::from_secs(1));
     }
 }
