@@ -12,9 +12,15 @@ categories = ["game-development"]
 [dependencies]
 minidumper-child = "0.5"
 bevy_app = { version = "0.19", default-features = false, features = ["std"] }
+ureq = { version = "3", features = ["json"], optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"
+
+[features]
+default = []
+github-issues = ["dep:ureq", "dep:serde"]
 
 [[bin]]
 name = "bevy_crash_trigger"
