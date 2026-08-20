@@ -11,7 +11,7 @@ categories = ["game-development"]
 
 [dependencies]
 minidumper-child = "0.5"
-bevy_app = "0.19"
+bevy_app = { version = "0.19", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 tempfile = "3"
