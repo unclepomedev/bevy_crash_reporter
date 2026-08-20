@@ -2,15 +2,18 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 use std::{fs, process, thread};
 
-fn wait_for_file(path: &Path, timeout: Duration) -> bool {
+fn wait_for_minidump_len(path: &Path, timeout: Duration) -> Option<usize> {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
-        if path.exists() {
-            return true;
+        if let Ok(contents) = fs::read_to_string(path)
+            && let Ok(len) = contents.trim().parse::<usize>()
+            && len > 0
+        {
+            return Some(len);
         }
         thread::sleep(Duration::from_millis(100));
     }
-    false
+    None
 }
 
 #[test]
@@ -24,15 +27,8 @@ fn plugin_captures_native_crash() {
         .expect("failed to spawn bevy_crash_trigger");
 
     assert!(!status.success());
-    assert!(
-        wait_for_file(&report_path, Duration::from_secs(10)),
-        "watcher process did not write a crash report in time"
-    );
 
-    let contents = fs::read_to_string(&report_path).expect("failed to read crash report");
-    let minidump_len: usize = contents
-        .trim()
-        .parse()
-        .expect("report should contain a byte length");
+    let minidump_len = wait_for_minidump_len(&report_path, Duration::from_secs(10))
+        .expect("watcher process did not write a valid crash report in time");
     assert!(minidump_len > 0);
 }

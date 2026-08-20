@@ -1,7 +1,7 @@
 use crate::native_crash::install_native_crash_capture;
 use crate::panic_report::{PanicReport, build_panic_report};
 use bevy_app::{App, Plugin};
-use std::panic;
+use std::panic::{set_hook, take_hook};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -42,11 +42,18 @@ impl Plugin for CrashReporterPlugin {
         // Must outlive the app, or the watcher process is torn down immediately.
         app.insert_non_send(guard);
 
-        let panic_cb = self.on_report.clone();
-        panic::set_hook(Box::new(move |info| {
-            panic_cb(CrashReport::Panic(build_panic_report(info)));
-        }));
+        install_panic_hook(self.on_report.clone());
     }
+}
+
+/// Chains onto whatever hook was previously installed, so panic output
+/// (e.g. the default stderr printer) keeps working alongside `on_report`.
+fn install_panic_hook(on_report: Arc<dyn Fn(CrashReport) + Send + Sync>) {
+    let previous_hook = take_hook();
+    set_hook(Box::new(move |info| {
+        previous_hook(info);
+        on_report(CrashReport::Panic(build_panic_report(info)));
+    }));
 }
 
 // ============================================================================================
@@ -55,32 +62,43 @@ impl Plugin for CrashReporterPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{Mutex, OnceLock};
-
-    // Same rationale as panic_report's tests: std::panic::set_hook is
-    // process-global, so serialize tests that swap it.
-    fn panic_hook_lock() -> &'static Mutex<()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-    }
+    use crate::test_support::panic_hook_lock;
+    use std::panic::catch_unwind;
+    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     #[test]
-    fn panic_is_forwarded_as_crash_report() {
-        let _guard = panic_hook_lock().lock().unwrap();
+    fn panic_hook_chains_previous_hook_and_on_report() {
+        let _guard = panic_hook_lock().lock().unwrap_or_else(|e| e.into_inner());
+
+        let original_hook = take_hook();
+
+        let previous_hook_called = Arc::new(AtomicBool::new(false));
+        let previous_hook_called_clone = previous_hook_called.clone();
+        set_hook(Box::new(move |_info| {
+            previous_hook_called_clone.store(true, Ordering::SeqCst);
+        }));
 
         let captured: Arc<Mutex<Option<CrashReport>>> = Arc::new(Mutex::new(None));
         let captured_clone = captured.clone();
-
-        let previous_hook = panic::take_hook();
-        panic::set_hook(Box::new(move |info| {
-            *captured_clone.lock().unwrap() = Some(CrashReport::Panic(build_panic_report(info)));
+        install_panic_hook(Arc::new(move |report| {
+            *captured_clone.lock().unwrap() = Some(report);
         }));
 
-        let result = panic::catch_unwind(|| panic!("boom"));
-        panic::set_hook(previous_hook);
+        let result = catch_unwind(|| panic!("boom"));
+        set_hook(original_hook);
 
         assert!(result.is_err());
-        match captured.lock().unwrap().take().expect("hook should run") {
+        assert!(
+            previous_hook_called.load(Ordering::SeqCst),
+            "previous hook should still run"
+        );
+        match captured
+            .lock()
+            .unwrap()
+            .take()
+            .expect("on_report should run")
+        {
             CrashReport::Panic(report) => assert_eq!(report.message, "boom"),
             CrashReport::Native { .. } => panic!("expected Panic, got Native"),
         }
