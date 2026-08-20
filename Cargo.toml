@@ -11,12 +11,13 @@ categories = ["game-development"]
 
 [dependencies]
 minidumper-child = "0.5"
+bevy_app = "0.19"
 
 [dev-dependencies]
 tempfile = "3"
 
 [[bin]]
-name = "crash_trigger"
-path = "tests/fixtures/crash_trigger/main.rs"
+name = "bevy_crash_trigger"
+path = "tests/fixtures/bevy_crash_trigger/main.rs"
 test = false
 doc = false
