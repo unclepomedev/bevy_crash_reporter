@@ -1,5 +1,5 @@
 #[cfg(feature = "github-issues")]
-mod github_issues;
+mod dev_github_issues;
 mod native_crash;
 mod panic_report;
 mod plugin;
@@ -9,7 +9,7 @@ pub use panic_report::{PanicLocation, PanicReport};
 pub use plugin::{CrashReport, CrashReporterPlugin, NativeCaptureFailurePolicy};
 
 #[cfg(feature = "github-issues")]
-pub use github_issues::GitHubIssuesReporter;
+pub use dev_github_issues::DevGitHubIssuesReporter;
 
 // ============================================================================================
 // TEST UTILS

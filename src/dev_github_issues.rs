@@ -9,8 +9,8 @@ const USER_AGENT: &str = "bevy_crash_reporter";
 /// "panic: " prefix and an ellipsis.
 const TITLE_MESSAGE_LIMIT: usize = 200;
 
-/// Reports crashes by creating a GitHub Issue. Intended for development use.
-pub struct GitHubIssuesReporter {
+/// Reports crashes by creating a GitHub Issue. Intended for development use (NEVER use for production).
+pub struct DevGitHubIssuesReporter {
     owner: String,
     repo: String,
     token: String,
@@ -20,7 +20,7 @@ pub struct GitHubIssuesReporter {
     require_confirmation: bool,
 }
 
-impl GitHubIssuesReporter {
+impl DevGitHubIssuesReporter {
     pub fn new(
         owner: impl Into<String>,
         repo: impl Into<String>,
@@ -224,8 +224,8 @@ mod tests {
     fn sends_expected_request_for_panic_report() {
         let server = start_mock_server("HTTP/1.1 201 Created\r\nContent-Length: 2\r\n\r\n{}");
 
-        let reporter =
-            GitHubIssuesReporter::new("owner", "repo", "test-token").with_base_url(server.base_url);
+        let reporter = DevGitHubIssuesReporter::new("owner", "repo", "test-token")
+            .with_base_url(server.base_url);
 
         reporter.notify(CrashReport::Panic(PanicReport {
             message: "boom".to_string(),
@@ -286,7 +286,7 @@ mod tests {
             }
         });
 
-        let reporter = GitHubIssuesReporter::new("owner", "repo", "test-token")
+        let reporter = DevGitHubIssuesReporter::new("owner", "repo", "test-token")
             .with_base_url(format!("http://{addr}"))
             .with_timeout(Duration::from_millis(100));
 
