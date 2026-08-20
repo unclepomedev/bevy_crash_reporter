@@ -23,7 +23,7 @@ pub(super) fn handle_native_capture_result<T, E: Display>(
             }
             NativeCaptureFailurePolicy::Continue => {
                 eprintln!(
-                    "bevy_crash_reporter: failed to install native crash capture, continuing without it: {err}"
+                    "bevy_crash_capture: failed to install native crash capture, continuing without it: {err}"
                 );
                 None
             }

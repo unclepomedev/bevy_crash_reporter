@@ -1,5 +1,5 @@
 use bevy_app::App;
-use bevy_crash_reporter::{CrashReport, CrashReporterPlugin};
+use bevy_crash_capture::{CrashReport, CrashReporterPlugin};
 use std::hint::black_box;
 use std::{env, fs, ptr};
 

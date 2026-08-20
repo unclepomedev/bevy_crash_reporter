@@ -75,7 +75,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_crash_reporter"
+name = "bevy_crash_capture"
 version = "0.0.1"
 dependencies = [
  "bevy_app",
