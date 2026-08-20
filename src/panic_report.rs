@@ -14,6 +14,7 @@ pub struct PanicLocation {
     pub column: u32,
 }
 
+#[cfg_attr(not(test), expect(dead_code))]
 /// Extracts a [`PanicReport`] from the raw hook info `std::panic` gives.
 pub(crate) fn build_panic_report(info: &PanicHookInfo<'_>) -> PanicReport {
     PanicReport {
