@@ -1,3 +1,5 @@
+#[cfg(feature = "github-issues")]
+mod github_issues;
 mod native_crash;
 mod panic_report;
 mod plugin;
@@ -5,6 +7,9 @@ mod plugin;
 pub use native_crash::install_native_crash_capture;
 pub use panic_report::{PanicLocation, PanicReport};
 pub use plugin::{CrashReport, CrashReporterPlugin, NativeCaptureFailurePolicy};
+
+#[cfg(feature = "github-issues")]
+pub use github_issues::GitHubIssuesReporter;
 
 // ============================================================================================
 // TEST UTILS

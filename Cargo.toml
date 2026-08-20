@@ -14,6 +14,7 @@ minidumper-child = "0.5"
 bevy_app = { version = "0.19", default-features = false, features = ["std"] }
 ureq = { version = "3", features = ["json"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
+rfd = { version = "0.17", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
@@ -21,6 +22,7 @@ tempfile = "3"
 [features]
 default = []
 github-issues = ["dep:ureq", "dep:serde"]
+confirm-dialog = ["dep:rfd"]
 
 [[bin]]
 name = "bevy_crash_trigger"
