@@ -2,5 +2,21 @@
 name = "bevy_crash_reporter"
 version = "0.0.1"
 edition = "2024"
+description = "Standalone crash reporting for Bevy games: capture panics and native crashes, notify configurable backends."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/unclepomedev/bevy_crash_reporter"
+readme = "README.md"
+keywords = ["bevy", "monitoring"]
+categories = ["game-development"]
 
 [dependencies]
+minidumper-child = "0.5"
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "crash_trigger"
+path = "tests/fixtures/crash_trigger/main.rs"
+test = false
+doc = false
