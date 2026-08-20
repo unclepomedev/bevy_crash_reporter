@@ -114,12 +114,11 @@ impl From<&CrashReport> for IssueRequest {
                 ),
                 body: format_panic_body(panic_report),
             },
-            CrashReport::Native { minidump, path } => Self {
+            CrashReport::Native { minidump, .. } => Self {
                 title: "native crash (minidump captured)".to_string(),
                 body: format!(
-                    "A native crash was captured.\n\n- minidump size: {} bytes\n- minidump path: `{}`",
-                    minidump.len(),
-                    path.display()
+                    "A native crash was captured.\n\n- minidump size: {} bytes",
+                    minidump.len()
                 ),
             },
         }
@@ -154,6 +153,7 @@ mod tests {
     use crate::PanicLocation;
     use std::io::{Read, Write};
     use std::net::TcpListener;
+    use std::path::PathBuf;
     use std::sync::mpsc::{Receiver, channel};
     use std::thread;
     use std::time::Duration;
@@ -258,6 +258,18 @@ mod tests {
             location: None,
         }));
         assert!(payload.title.chars().count() <= TITLE_MESSAGE_LIMIT + "panic: …".chars().count());
+    }
+
+    #[test]
+    fn formats_native_crash_report_without_local_path() {
+        let payload = IssueRequest::from(&CrashReport::Native {
+            minidump: vec![0; 42],
+            path: PathBuf::from("/Users/secret_user/project/crash.dmp"),
+        });
+        assert_eq!(payload.title, "native crash (minidump captured)");
+        assert!(payload.body.contains("minidump size: 42 bytes"));
+        assert!(!payload.body.contains("secret_user"));
+        assert!(!payload.body.contains("crash.dmp"));
     }
 
     #[test]
