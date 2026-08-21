@@ -1,5 +1,7 @@
 # bevy_crash_capture
 
+[![Crates.io](https://img.shields.io/crates/v/bevy_crash_capture.svg)](https://crates.io/crates/bevy_crash_capture)
+
 Catches panics and native crashes (SEH/segfault) in Bevy games.
 
 ## How to use
