@@ -56,7 +56,7 @@ impl DevGitHubIssuesReporter {
         self
     }
 
-    /// Use as the `on_report` callback for `CrashReporterPlugin`.
+    /// Use as the `on_report` callback for `CrashCapturePlugin`.
     pub fn notify(&self, report: CrashReport) {
         #[cfg(feature = "confirm-dialog")]
         if self.require_confirmation && !confirm_send() {
