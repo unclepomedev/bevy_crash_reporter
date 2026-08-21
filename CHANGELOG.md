@@ -4,7 +4,7 @@
 
 ### Changed
 
-* Renamed main plugin.
+* Renamed `CrashReporterPlugin` to `CrashCapturePlugin`.
 
 ## [0.0.2] - 2026-08-21
 
