@@ -1,6 +1,6 @@
 [package]
 name = "bevy_crash_capture"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2024"
 description = "Captures panics and native crashes in Bevy games; you decide where reports go."
 license = "MIT OR Apache-2.0"

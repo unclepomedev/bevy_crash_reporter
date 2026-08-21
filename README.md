@@ -4,16 +4,16 @@ Catches panics and native crashes (SEH/segfault) in Bevy games.
 
 ## How to use
 
-1. (must) Add `CrashReporterPlugin` as the *first* plugin, before `DefaultPlugins`.
+1. (must) Add `CrashCapturePlugin` as the *first* plugin, before `DefaultPlugins`.
 2. Give it an `on_report` closure. This is the only thing that decides where a crash report goes.
 
 ```rust
 use bevy::prelude::*;
-use bevy_crash_capture::{CrashReport, CrashReporterPlugin};
+use bevy_crash_capture::{CrashReport, CrashCapturePlugin};
 
 fn main() {
     App::new()
-        .add_plugins(CrashReporterPlugin::new(|report: CrashReport| {  // 1, 2
+        .add_plugins(CrashCapturePlugin::new(|report: CrashReport| {  // 1, 2
             match report {
                 CrashReport::Panic(panic) => eprintln!("panic: {}", panic.message),
                 CrashReport::Native { minidump, .. } => {
@@ -30,12 +30,12 @@ Route `on_report` to whatever you already trust: your own backend, Sentry, a log
 
 ### If the native crash watcher fails to start
 
-By default, `CrashReporterPlugin` panics on startup if it can't spawn the watcher process. Use `NativeCaptureFailurePolicy::Continue` to keep the game running without native crash capture instead (Rust panics are still reported):
+By default, `CrashCapturePlugin` panics on startup if it can't spawn the watcher process. Use `NativeCaptureFailurePolicy::Continue` to keep the game running without native crash capture instead (Rust panics are still reported):
 
 ```rust
-use bevy_crash_capture::{CrashReporterPlugin, NativeCaptureFailurePolicy};
+use bevy_crash_capture::{CrashCapturePlugin, NativeCaptureFailurePolicy};
 
-CrashReporterPlugin::new(on_report)
+CrashCapturePlugin::new(on_report)
     .with_native_capture_failure_policy(NativeCaptureFailurePolicy::Continue);
 ```
 
@@ -47,7 +47,7 @@ CrashReporterPlugin::new(on_report)
 use bevy_crash_capture::DevGitHubIssuesReporter;
 
 let reporter = DevGitHubIssuesReporter::new("your-org", "your-repo", github_token);
-CrashReporterPlugin::new(move |report| reporter.notify(report));
+CrashCapturePlugin::new(move |report| reporter.notify(report));
 ```
 
 Add `features = ["confirm-dialog"]` for a native Yes/No prompt before sending (panics only — see doc comment for the native-crash caveat).

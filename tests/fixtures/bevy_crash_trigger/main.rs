@@ -1,5 +1,5 @@
 use bevy_app::App;
-use bevy_crash_capture::{CrashReport, CrashReporterPlugin};
+use bevy_crash_capture::{CrashCapturePlugin, CrashReport};
 use std::hint::black_box;
 use std::{env, fs, ptr};
 
@@ -8,7 +8,7 @@ fn main() {
         .expect("CRASH_REPORT_OUTPUT_PATH must be set by the test harness");
 
     let mut app = App::new();
-    app.add_plugins(CrashReporterPlugin::new(move |report| {
+    app.add_plugins(CrashCapturePlugin::new(move |report| {
         if let CrashReport::Native { minidump, .. } = report {
             fs::write(&output_path, minidump.len().to_string())
                 .expect("failed to write crash report marker");

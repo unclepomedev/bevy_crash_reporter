@@ -11,7 +11,7 @@ const WORKER_THREAD_NAME: &str = "bevy_crash_capture-worker";
 type ReportCallback = Arc<dyn Fn(CrashReport) + Send + Sync>;
 
 // Process-global: `std::panic::set_hook` is process-wide, so multiple
-// `App`s in the same process each with their own `CrashReporterPlugin`
+// `App`s in the same process each with their own `CrashCapturePlugin`
 // must share a single installed hook and fan out to every registered callback.
 static CALLBACKS: Mutex<Vec<ReportCallback>> = Mutex::new(Vec::new());
 static HOOK_INSTALLED: Mutex<bool> = Mutex::new(false);

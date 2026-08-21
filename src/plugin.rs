@@ -16,12 +16,12 @@ use std::sync::Arc;
 /// - Add this as the *first* plugin, before `DefaultPlugins`.
 /// - `on_report` may fire from either the app process (panics) or the
 ///   separate watcher process (native crashes) — see `install_native_crash_capture`.
-pub struct CrashReporterPlugin {
+pub struct CrashCapturePlugin {
     on_report: Arc<dyn Fn(CrashReport) + Send + Sync>,
     native_capture_failure_policy: NativeCaptureFailurePolicy,
 }
 
-impl CrashReporterPlugin {
+impl CrashCapturePlugin {
     pub fn new(on_report: impl Fn(CrashReport) + Send + Sync + 'static) -> Self {
         Self {
             on_report: Arc::new(on_report),
@@ -38,7 +38,7 @@ impl CrashReporterPlugin {
     }
 }
 
-impl Plugin for CrashReporterPlugin {
+impl Plugin for CrashCapturePlugin {
     fn build(&self, app: &mut App) {
         let native_cb = self.on_report.clone();
         let result = install_native_crash_capture(move |buffer, path| {

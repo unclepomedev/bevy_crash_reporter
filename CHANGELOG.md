@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [0.0.3] - 2026-08-21
+
+### Changed
+
+* Renamed `CrashReporterPlugin` to `CrashCapturePlugin`.
+
 ## [0.0.2] - 2026-08-21
 
 ### Changed
