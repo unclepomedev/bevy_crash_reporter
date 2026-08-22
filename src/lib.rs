@@ -6,10 +6,14 @@ mod plugin;
 
 pub use native_crash::install_native_crash_capture;
 pub use panic_report::{PanicLocation, PanicReport};
-pub use plugin::{CrashCapturePlugin, CrashReport, NativeCaptureFailurePolicy};
+pub use plugin::{
+    CrashCapturePlugin, CrashContext, CrashKind, CrashReport, NativeCaptureFailurePolicy,
+};
 
 #[cfg(feature = "github-issues")]
 pub use dev_github_issues::DevGitHubIssuesReporter;
+#[cfg(feature = "recent-logs")]
+pub use plugin::{RecentLogsHandle, RecentLogsLayer};
 
 // ============================================================================================
 // TEST UTILS
