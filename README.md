@@ -11,24 +11,27 @@ Catches panics and native crashes (SEH/segfault) in Bevy games.
 
 ```rust
 use bevy::prelude::*;
-use bevy_crash_capture::{CrashReport, CrashCapturePlugin};
+use bevy_crash_capture::{CrashKind, CrashReport, CrashCapturePlugin};
 
 fn main() {
     App::new()
         .add_plugins(CrashCapturePlugin::new(|report: CrashReport| {  // 1, 2
-            match report {
-                CrashReport::Panic(panic) => eprintln!("panic: {}", panic.message),
-                CrashReport::Native { minidump, .. } => {
+            match report.kind {
+                CrashKind::Panic(panic) => eprintln!("panic: {}", panic.message),
+                CrashKind::Native { minidump, .. } => {
                     eprintln!("native crash, {} byte minidump", minidump.len());
                 }
             }
-        }))
+        })
+        .with_app_version(env!("CARGO_PKG_VERSION")))
         .add_plugins(DefaultPlugins)
         .run();
 }
 ```
 
 Route `on_report` to whatever you already trust: your own backend, Sentry, a log file. This crate only catches; it does not send anything on its own.
+
+Every report carries a `CrashContext` (`report.context`) with the build-target `os` and, if set via `.with_app_version(...)`, your `app_version`.
 
 ### If the native crash watcher fails to start
 

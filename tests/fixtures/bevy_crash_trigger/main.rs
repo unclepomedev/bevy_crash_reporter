@@ -1,5 +1,5 @@
 use bevy_app::App;
-use bevy_crash_capture::{CrashCapturePlugin, CrashReport};
+use bevy_crash_capture::{CrashCapturePlugin, CrashKind};
 use std::hint::black_box;
 use std::{env, fs, ptr};
 
@@ -9,7 +9,7 @@ fn main() {
 
     let mut app = App::new();
     app.add_plugins(CrashCapturePlugin::new(move |report| {
-        if let CrashReport::Native { minidump, .. } = report {
+        if let CrashKind::Native { minidump, .. } = report.kind {
             fs::write(&output_path, minidump.len().to_string())
                 .expect("failed to write crash report marker");
         }

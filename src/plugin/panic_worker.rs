@@ -1,4 +1,4 @@
-use super::report::CrashReport;
+use super::report::{CrashContext, CrashKind, CrashReport};
 use crate::panic_report::build_panic_report;
 use std::panic::{AssertUnwindSafe, catch_unwind, set_hook, take_hook};
 use std::sync::mpsc::{SyncSender, sync_channel};
@@ -18,10 +18,12 @@ static HOOK_INSTALLED: Mutex<bool> = Mutex::new(false);
 
 /// Registers `on_report` and, on the first call in this process, chains a
 /// panic hook that dispatches to every registered callback.
-pub(super) fn install_panic_hook(on_report: ReportCallback) {
+// The hook is installed once per process, so the first caller's context is
+// baked into the hook and used for every subsequent report.
+pub(super) fn install_panic_hook(on_report: ReportCallback, context: CrashContext) {
     register_callback(on_report);
     if claim_hook_installation() {
-        chain_panic_hook(spawn_worker());
+        chain_panic_hook(spawn_worker(), context);
     }
 }
 
@@ -67,12 +69,15 @@ fn spawn_worker() -> SyncSender<CrashReport> {
 
 /// Chains onto whatever hook was previously installed, so panic output
 /// (e.g. the default stderr printer) keeps working alongside `on_report`.
-fn chain_panic_hook(sender: SyncSender<CrashReport>) {
+fn chain_panic_hook(sender: SyncSender<CrashReport>, context: CrashContext) {
     let previous_hook = take_hook();
     set_hook(Box::new(move |info| {
         previous_hook(info);
         // Called from inside a panic hook: must never block or retry.
-        let _ = sender.try_send(CrashReport::Panic(build_panic_report(info)));
+        let _ = sender.try_send(CrashReport {
+            kind: CrashKind::Panic(build_panic_report(info)),
+            context: context.clone(),
+        });
     }));
 }
 
@@ -93,6 +98,13 @@ mod tests {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::mpsc::sync_channel as test_sync_channel;
     use std::time::{Duration, Instant};
+
+    fn test_context() -> CrashContext {
+        CrashContext {
+            app_version: Some("1.2.3".to_string()),
+            os: std::env::consts::OS,
+        }
+    }
 
     fn wait_for<T>(mut poll: impl FnMut() -> Option<T>, timeout: Duration) -> Option<T> {
         let deadline = Instant::now() + timeout;
@@ -120,9 +132,12 @@ mod tests {
 
         let captured: Arc<StdMutex<Option<CrashReport>>> = Arc::new(StdMutex::new(None));
         let captured_clone = captured.clone();
-        install_panic_hook(Arc::new(move |report| {
-            *captured_clone.lock().unwrap() = Some(report);
-        }));
+        install_panic_hook(
+            Arc::new(move |report| {
+                *captured_clone.lock().unwrap() = Some(report);
+            }),
+            test_context(),
+        );
 
         let result = catch_unwind(|| panic!("boom"));
         set_hook(original_hook);
@@ -135,10 +150,12 @@ mod tests {
 
         let report = wait_for(|| captured.lock().unwrap().take(), Duration::from_secs(2))
             .expect("on_report should run");
-        match report {
-            CrashReport::Panic(report) => assert_eq!(report.message, "boom"),
-            CrashReport::Native { .. } => panic!("expected Panic, got Native"),
+        match report.kind {
+            CrashKind::Panic(panic) => assert_eq!(panic.message, "boom"),
+            CrashKind::Native { .. } => panic!("expected Panic, got Native"),
         }
+        assert_eq!(report.context.app_version.as_deref(), Some("1.2.3"));
+        assert_eq!(report.context.os, std::env::consts::OS);
     }
 
     #[test]
@@ -149,10 +166,13 @@ mod tests {
         let original_hook = take_hook();
 
         let (started_tx, started_rx) = test_sync_channel::<()>(0);
-        install_panic_hook(Arc::new(move |_report| {
-            let _ = started_tx.send(());
-            panic!("on_report itself panicked");
-        }));
+        install_panic_hook(
+            Arc::new(move |_report| {
+                let _ = started_tx.send(());
+                panic!("on_report itself panicked");
+            }),
+            test_context(),
+        );
 
         let result = catch_unwind(|| panic!("boom"));
         set_hook(original_hook);
@@ -178,14 +198,20 @@ mod tests {
         let second_calls = Arc::new(AtomicUsize::new(0));
 
         let first_calls_clone = first_calls.clone();
-        install_panic_hook(Arc::new(move |_report| {
-            first_calls_clone.fetch_add(1, Ordering::SeqCst);
-        }));
+        install_panic_hook(
+            Arc::new(move |_report| {
+                first_calls_clone.fetch_add(1, Ordering::SeqCst);
+            }),
+            test_context(),
+        );
 
         let second_calls_clone = second_calls.clone();
-        install_panic_hook(Arc::new(move |_report| {
-            second_calls_clone.fetch_add(1, Ordering::SeqCst);
-        }));
+        install_panic_hook(
+            Arc::new(move |_report| {
+                second_calls_clone.fetch_add(1, Ordering::SeqCst);
+            }),
+            test_context(),
+        );
 
         let result = catch_unwind(|| panic!("boom"));
         set_hook(original_hook);

@@ -1,4 +1,4 @@
-use crate::{CrashReport, PanicReport};
+use crate::{CrashContext, CrashKind, CrashReport, PanicReport};
 use serde::Serialize;
 use std::time::Duration;
 
@@ -106,19 +106,24 @@ struct IssueRequest {
 
 impl From<&CrashReport> for IssueRequest {
     fn from(report: &CrashReport) -> Self {
-        match report {
-            CrashReport::Panic(panic_report) => Self {
+        match &report.kind {
+            CrashKind::Panic(panic_report) => Self {
                 title: format!(
                     "panic: {}",
                     truncate(&panic_report.message, TITLE_MESSAGE_LIMIT)
                 ),
-                body: format_panic_body(panic_report),
+                body: format!(
+                    "{}\n\n{}",
+                    format_panic_body(panic_report),
+                    format_context(&report.context)
+                ),
             },
-            CrashReport::Native { minidump, .. } => Self {
+            CrashKind::Native { minidump, .. } => Self {
                 title: "native crash (minidump captured)".to_string(),
                 body: format!(
-                    "A native crash was captured.\n\n- minidump size: {} bytes",
-                    minidump.len()
+                    "A native crash was captured.\n\n- minidump size: {} bytes\n{}",
+                    minidump.len(),
+                    format_context(&report.context)
                 ),
             },
         }
@@ -132,6 +137,13 @@ fn format_panic_body(report: &PanicReport) -> String {
             report.message, location.file, location.line, location.column
         ),
         None => format!("```\n{}\n```", report.message),
+    }
+}
+
+fn format_context(context: &CrashContext) -> String {
+    match &context.app_version {
+        Some(version) => format!("- os: {}\n- app version: {}", context.os, version),
+        None => format!("- os: {}", context.os),
     }
 }
 
@@ -157,6 +169,20 @@ mod tests {
     use std::sync::mpsc::{Receiver, channel};
     use std::thread;
     use std::time::Duration;
+
+    fn test_context() -> CrashContext {
+        CrashContext {
+            app_version: Some("1.2.3".to_string()),
+            os: "testos",
+        }
+    }
+
+    fn panic_report(kind: CrashKind) -> CrashReport {
+        CrashReport {
+            kind,
+            context: test_context(),
+        }
+    }
 
     struct MockServer {
         base_url: String,
@@ -227,14 +253,14 @@ mod tests {
         let reporter = DevGitHubIssuesReporter::new("owner", "repo", "test-token")
             .with_base_url(server.base_url);
 
-        reporter.notify(CrashReport::Panic(PanicReport {
+        reporter.notify(panic_report(CrashKind::Panic(PanicReport {
             message: "boom".to_string(),
             location: Some(PanicLocation {
                 file: "src/main.rs".to_string(),
                 line: 1,
                 column: 1,
             }),
-        }));
+        })));
 
         let (headers, body) = server
             .received
@@ -249,25 +275,29 @@ mod tests {
         );
         assert!(body.contains("boom"));
         assert!(body.contains("src/main.rs"));
+        assert!(body.contains("os: testos"));
+        assert!(body.contains("app version: 1.2.3"));
     }
 
     #[test]
     fn truncates_long_panic_messages_in_title() {
-        let payload = IssueRequest::from(&CrashReport::Panic(PanicReport {
+        let payload = IssueRequest::from(&panic_report(CrashKind::Panic(PanicReport {
             message: "x".repeat(500),
             location: None,
-        }));
+        })));
         assert!(payload.title.chars().count() <= TITLE_MESSAGE_LIMIT + "panic: …".chars().count());
     }
 
     #[test]
     fn formats_native_crash_report_without_local_path() {
-        let payload = IssueRequest::from(&CrashReport::Native {
+        let payload = IssueRequest::from(&panic_report(CrashKind::Native {
             minidump: vec![0; 42],
             path: PathBuf::from("/Users/secret_user/project/crash.dmp"),
-        });
+        }));
         assert_eq!(payload.title, "native crash (minidump captured)");
         assert!(payload.body.contains("minidump size: 42 bytes"));
+        assert!(payload.body.contains("os: testos"));
+        assert!(payload.body.contains("app version: 1.2.3"));
         assert!(!payload.body.contains("secret_user"));
         assert!(!payload.body.contains("crash.dmp"));
     }
@@ -290,10 +320,10 @@ mod tests {
             .with_base_url(format!("http://{addr}"))
             .with_timeout(Duration::from_millis(100));
 
-        let report = CrashReport::Panic(PanicReport {
+        let report = panic_report(CrashKind::Panic(PanicReport {
             message: "timeout test".to_string(),
             location: None,
-        });
+        }));
 
         let start = std::time::Instant::now();
         let result = reporter.create_issue(&report);
