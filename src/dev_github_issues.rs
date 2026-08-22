@@ -151,7 +151,6 @@ fn append_recent_logs(body: &mut String, report: &CrashReport) {
     ));
 }
 
-#[cfg(feature = "recent-logs")]
 fn longest_consecutive_backticks(s: &str) -> usize {
     let mut max_run = 0;
     let mut current_run = 0;
@@ -170,12 +169,15 @@ fn longest_consecutive_backticks(s: &str) -> usize {
 fn append_recent_logs(_body: &mut String, _report: &CrashReport) {}
 
 fn format_panic_body(report: &PanicReport) -> String {
+    let max_run = longest_consecutive_backticks(&report.message);
+    let fence_len = (max_run + 1).max(3);
+    let fence = "`".repeat(fence_len);
     match &report.location {
         Some(location) => format!(
-            "```\n{}\n```\n\nLocation: `{}:{}:{}`",
+            "{fence}\n{}\n{fence}\n\nLocation: `{}:{}:{}`",
             report.message, location.file, location.line, location.column
         ),
-        None => format!("```\n{}\n```", report.message),
+        None => format!("{fence}\n{}\n{fence}", report.message),
     }
 }
 
@@ -404,5 +406,14 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), ureq::Error::Timeout(_)));
         assert!(elapsed < Duration::from_secs(1));
+    }
+
+    #[test]
+    fn escapes_backticks_in_panic_message() {
+        let payload = IssueRequest::from(&panic_report(CrashKind::Panic(PanicReport {
+            message: "value was ```weird```".to_string(),
+            location: None,
+        })));
+        assert!(payload.body.contains("````\nvalue was ```weird```\n````"));
     }
 }
