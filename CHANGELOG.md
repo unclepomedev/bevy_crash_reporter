@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [0.0.5] - 2026-08-22
+
+### Fixed
+
+* Fixed escapes backticks in panic messages.
+
 ## [0.0.4] - 2026-08-22
 
 ### Added
