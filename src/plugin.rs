@@ -14,6 +14,7 @@ use self::panic_worker::install_panic_hook;
 use self::report::ReportAssembler;
 use crate::native_crash::install_native_crash_capture;
 use bevy_app::{App, Plugin};
+use std::env::consts;
 use std::sync::Arc;
 
 /// Captures panics and native crashes, forwarding both to `on_report`.
@@ -67,7 +68,7 @@ impl Plugin for CrashCapturePlugin {
         let assembler = ReportAssembler {
             context: CrashContext {
                 app_version: self.app_version.clone(),
-                os: std::env::consts::OS,
+                os: consts::OS,
             },
             #[cfg(feature = "recent-logs")]
             recent_logs: self.recent_logs.clone(),

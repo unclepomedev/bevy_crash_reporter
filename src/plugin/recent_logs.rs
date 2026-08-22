@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::fmt;
 use std::sync::{Arc, Mutex};
 use tracing::field::{Field, Visit};
 use tracing::{Event, Subscriber};
@@ -80,8 +81,8 @@ struct LineVisitor {
 }
 
 impl Visit for LineVisitor {
-    fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
-        use std::fmt::Write;
+    fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+        use fmt::Write;
         if field.name() == "message" {
             if self.line.is_empty() {
                 self.line = format!("{value:?}");

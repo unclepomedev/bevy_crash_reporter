@@ -91,6 +91,7 @@ pub(super) fn reset_for_test() {
 mod tests {
     use super::*;
     use crate::test_support::panic_hook_lock;
+    use std::env::consts;
     use std::sync::Mutex as StdMutex;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::mpsc::sync_channel as test_sync_channel;
@@ -100,7 +101,7 @@ mod tests {
         ReportAssembler {
             context: crate::CrashContext {
                 app_version: Some("1.2.3".to_string()),
-                os: std::env::consts::OS,
+                os: consts::OS,
             },
             #[cfg(feature = "recent-logs")]
             recent_logs: None,
@@ -156,7 +157,7 @@ mod tests {
             CrashKind::Native { .. } => panic!("expected Panic, got Native"),
         }
         assert_eq!(report.context.app_version.as_deref(), Some("1.2.3"));
-        assert_eq!(report.context.os, std::env::consts::OS);
+        assert_eq!(report.context.os, consts::OS);
     }
 
     #[test]
