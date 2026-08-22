@@ -12,6 +12,8 @@ pub use plugin::{
 
 #[cfg(feature = "github-issues")]
 pub use dev_github_issues::DevGitHubIssuesReporter;
+#[cfg(feature = "recent-logs")]
+pub use plugin::{RecentLogsHandle, RecentLogsLayer};
 
 // ============================================================================================
 // TEST UTILS

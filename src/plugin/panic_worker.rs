@@ -1,4 +1,4 @@
-use super::report::{CrashContext, CrashKind, CrashReport};
+use super::report::{CrashKind, CrashReport, ReportAssembler};
 use crate::panic_report::build_panic_report;
 use std::panic::{AssertUnwindSafe, catch_unwind, set_hook, take_hook};
 use std::sync::mpsc::{SyncSender, sync_channel};
@@ -18,12 +18,12 @@ static HOOK_INSTALLED: Mutex<bool> = Mutex::new(false);
 
 /// Registers `on_report` and, on the first call in this process, chains a
 /// panic hook that dispatches to every registered callback.
-// The hook is installed once per process, so the first caller's context is
+// The hook is installed once per process, so the first caller's assembler is
 // baked into the hook and used for every subsequent report.
-pub(super) fn install_panic_hook(on_report: ReportCallback, context: CrashContext) {
+pub(super) fn install_panic_hook(on_report: ReportCallback, assembler: ReportAssembler) {
     register_callback(on_report);
     if claim_hook_installation() {
-        chain_panic_hook(spawn_worker(), context);
+        chain_panic_hook(spawn_worker(), assembler);
     }
 }
 
@@ -69,15 +69,12 @@ fn spawn_worker() -> SyncSender<CrashReport> {
 
 /// Chains onto whatever hook was previously installed, so panic output
 /// (e.g. the default stderr printer) keeps working alongside `on_report`.
-fn chain_panic_hook(sender: SyncSender<CrashReport>, context: CrashContext) {
+fn chain_panic_hook(sender: SyncSender<CrashReport>, assembler: ReportAssembler) {
     let previous_hook = take_hook();
     set_hook(Box::new(move |info| {
         previous_hook(info);
         // Called from inside a panic hook: must never block or retry.
-        let _ = sender.try_send(CrashReport {
-            kind: CrashKind::Panic(build_panic_report(info)),
-            context: context.clone(),
-        });
+        let _ = sender.try_send(assembler.assemble(CrashKind::Panic(build_panic_report(info))));
     }));
 }
 
@@ -99,10 +96,14 @@ mod tests {
     use std::sync::mpsc::sync_channel as test_sync_channel;
     use std::time::{Duration, Instant};
 
-    fn test_context() -> CrashContext {
-        CrashContext {
-            app_version: Some("1.2.3".to_string()),
-            os: std::env::consts::OS,
+    fn test_assembler() -> ReportAssembler {
+        ReportAssembler {
+            context: crate::CrashContext {
+                app_version: Some("1.2.3".to_string()),
+                os: std::env::consts::OS,
+            },
+            #[cfg(feature = "recent-logs")]
+            recent_logs: None,
         }
     }
 
@@ -136,7 +137,7 @@ mod tests {
             Arc::new(move |report| {
                 *captured_clone.lock().unwrap() = Some(report);
             }),
-            test_context(),
+            test_assembler(),
         );
 
         let result = catch_unwind(|| panic!("boom"));
@@ -171,7 +172,7 @@ mod tests {
                 let _ = started_tx.send(());
                 panic!("on_report itself panicked");
             }),
-            test_context(),
+            test_assembler(),
         );
 
         let result = catch_unwind(|| panic!("boom"));
@@ -202,7 +203,7 @@ mod tests {
             Arc::new(move |_report| {
                 first_calls_clone.fetch_add(1, Ordering::SeqCst);
             }),
-            test_context(),
+            test_assembler(),
         );
 
         let second_calls_clone = second_calls.clone();
@@ -210,7 +211,7 @@ mod tests {
             Arc::new(move |_report| {
                 second_calls_clone.fetch_add(1, Ordering::SeqCst);
             }),
-            test_context(),
+            test_assembler(),
         );
 
         let result = catch_unwind(|| panic!("boom"));

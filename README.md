@@ -44,6 +44,40 @@ CrashCapturePlugin::new(on_report)
     .with_native_capture_failure_policy(NativeCaptureFailurePolicy::Continue);
 ```
 
+### Attaching recent logs (optional feature)
+
+`features = ["recent-logs"]` adds `RecentLogsLayer`, a `tracing_subscriber` layer that keeps the most recent log lines in a ring buffer. Reports then carry them in `report.recent_logs`.
+
+This crate never installs or replaces a global tracing subscriber — it plugs into whatever log setup you already have. With Bevy's `LogPlugin`, hand the layer over through `custom_layer` (a plain `fn` pointer, so it is passed via a `static`):
+
+```rust
+use bevy::log::{BoxedLayer, LogPlugin};
+use bevy_crash_capture::{CrashCapturePlugin, RecentLogsLayer};
+use std::sync::Mutex;
+use tracing_subscriber::Layer;
+
+static RECENT_LOGS_LAYER: Mutex<Option<BoxedLayer>> = Mutex::new(None);
+
+fn take_recent_logs_layer(_app: &mut App) -> Option<BoxedLayer> {
+    RECENT_LOGS_LAYER.lock().unwrap().take()
+}
+
+fn main() {
+    let (layer, handle) = RecentLogsLayer::new(100);
+    *RECENT_LOGS_LAYER.lock().unwrap() = Some(layer.boxed());
+
+    App::new()
+        .add_plugins(CrashCapturePlugin::new(on_report).with_recent_logs(handle))
+        .add_plugins(DefaultPlugins.set(LogPlugin {
+            custom_layer: take_recent_logs_layer,
+            ..Default::default()
+        }))
+        .run();
+}
+```
+
+If you build your own tracing subscriber instead of using `LogPlugin`, add the layer there (e.g. `registry().with(layer)`); the handle works the same either way. Without `.with_recent_logs(...)`, `report.recent_logs` is empty.
+
 ### Local development: GitHub Issues (optional feature)
 
 `features = ["github-issues"]` adds `DevGitHubIssuesReporter`, which files a GitHub Issue per crash. **Local development only** — the token ships inside the binary if you pass it as a literal, so never bundle this into a build you distribute to players.
@@ -62,6 +96,7 @@ Add `features = ["confirm-dialog"]` for a native Yes/No prompt before sending (p
 - Anything embedded as a literal in the binary (tokens, webhook URLs) is extractable by anyone with the game files. `DevGitHubIssuesReporter` is dev-only for this reason.
 - Raw minidump bytes are never sent by `DevGitHubIssuesReporter` — only size and filename. A minidump is a memory snapshot and may contain arbitrary sensitive data.
 - Panic messages are not filtered. Don't put secrets in `panic!()` messages.
+- With `recent-logs`, log lines are attached to reports verbatim. This crate does not filter or redact them — keeping secrets and personal data out of your logs is your responsibility.
 
 ## What it does and does not do
 

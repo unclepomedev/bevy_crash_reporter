@@ -106,7 +106,7 @@ struct IssueRequest {
 
 impl From<&CrashReport> for IssueRequest {
     fn from(report: &CrashReport) -> Self {
-        match &report.kind {
+        let mut request = match &report.kind {
             CrashKind::Panic(panic_report) => Self {
                 title: format!(
                     "panic: {}",
@@ -126,9 +126,25 @@ impl From<&CrashReport> for IssueRequest {
                     format_context(&report.context)
                 ),
             },
-        }
+        };
+        append_recent_logs(&mut request.body, report);
+        request
     }
 }
+
+#[cfg(feature = "recent-logs")]
+fn append_recent_logs(body: &mut String, report: &CrashReport) {
+    if report.recent_logs.is_empty() {
+        return;
+    }
+    body.push_str(&format!(
+        "\n\nRecent logs:\n```\n{}\n```",
+        report.recent_logs.join("\n")
+    ));
+}
+
+#[cfg(not(feature = "recent-logs"))]
+fn append_recent_logs(_body: &mut String, _report: &CrashReport) {}
 
 fn format_panic_body(report: &PanicReport) -> String {
     match &report.location {
@@ -181,6 +197,8 @@ mod tests {
         CrashReport {
             kind,
             context: test_context(),
+            #[cfg(feature = "recent-logs")]
+            recent_logs: Vec::new(),
         }
     }
 
@@ -277,6 +295,19 @@ mod tests {
         assert!(body.contains("src/main.rs"));
         assert!(body.contains("os: testos"));
         assert!(body.contains("app version: 1.2.3"));
+    }
+
+    #[cfg(feature = "recent-logs")]
+    #[test]
+    fn appends_recent_logs_to_body_when_present() {
+        let mut report = panic_report(CrashKind::Panic(PanicReport {
+            message: "boom".to_string(),
+            location: None,
+        }));
+        report.recent_logs = vec!["INFO game: spawned".to_string()];
+        let payload = IssueRequest::from(&report);
+        assert!(payload.body.contains("Recent logs:"));
+        assert!(payload.body.contains("INFO game: spawned"));
     }
 
     #[test]
