@@ -39,15 +39,14 @@ impl RecentLogsLayer {
 }
 
 impl RecentLogsHandle {
-    // Clones the buffer under the lock; formatting happens on the write side,
-    // so the crash path only pays for the copy.
+    // Clones the buffer under the lock if available; formatting happens on the write
+    // side, so the crash path only pays for the copy and never blocks if the lock
+    // is currently contended.
     pub(crate) fn snapshot(&self) -> Vec<String> {
         self.buffer
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .iter()
-            .cloned()
-            .collect()
+            .try_lock()
+            .map(|guard| guard.iter().cloned().collect())
+            .unwrap_or_default()
     }
 }
 
@@ -140,6 +139,13 @@ mod tests {
     #[test]
     fn snapshot_is_empty_without_events() {
         let (_layer, handle) = RecentLogsLayer::new(4);
+        assert!(handle.snapshot().is_empty());
+    }
+
+    #[test]
+    fn snapshot_returns_empty_when_mutex_is_locked() {
+        let (_layer, handle) = RecentLogsLayer::new(4);
+        let _guard = handle.buffer.lock().unwrap();
         assert!(handle.snapshot().is_empty());
     }
 
