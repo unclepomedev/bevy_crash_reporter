@@ -3,7 +3,8 @@
   "extends": [
     "config:recommended",
     ":timezone(Asia/Tokyo)",
-    ":maintainLockFilesWeekly"
+    ":maintainLockFilesWeekly",
+    "helpers:pinGitHubActionDigests"
   ],
   "labels": [
     "dependencies",
