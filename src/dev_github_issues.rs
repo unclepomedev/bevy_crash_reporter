@@ -137,10 +137,33 @@ fn append_recent_logs(body: &mut String, report: &CrashReport) {
     if report.recent_logs.is_empty() {
         return;
     }
+    let max_run = report
+        .recent_logs
+        .iter()
+        .map(|line| longest_consecutive_backticks(line))
+        .max()
+        .unwrap_or(0);
+    let fence_len = (max_run + 1).max(3);
+    let fence = "`".repeat(fence_len);
     body.push_str(&format!(
-        "\n\nRecent logs:\n```\n{}\n```",
+        "\n\nRecent logs:\n{fence}\n{}\n{fence}",
         report.recent_logs.join("\n")
     ));
+}
+
+#[cfg(feature = "recent-logs")]
+fn longest_consecutive_backticks(s: &str) -> usize {
+    let mut max_run = 0;
+    let mut current_run = 0;
+    for ch in s.chars() {
+        if ch == '`' {
+            current_run += 1;
+            max_run = max_run.max(current_run);
+        } else {
+            current_run = 0;
+        }
+    }
+    max_run
 }
 
 #[cfg(not(feature = "recent-logs"))]
@@ -307,7 +330,25 @@ mod tests {
         report.recent_logs = vec!["INFO game: spawned".to_string()];
         let payload = IssueRequest::from(&report);
         assert!(payload.body.contains("Recent logs:"));
-        assert!(payload.body.contains("INFO game: spawned"));
+        assert!(payload.body.contains("```\nINFO game: spawned\n```"));
+    }
+
+    #[cfg(feature = "recent-logs")]
+    #[test]
+    fn escapes_backticks_in_recent_logs_with_longer_fence() {
+        let mut report = panic_report(CrashKind::Panic(PanicReport {
+            message: "boom".to_string(),
+            location: None,
+        }));
+        report.recent_logs = vec![
+            "INFO game: code block ```example``` inside".to_string(),
+            "DEBUG game: another ````4-backtick```` run".to_string(),
+        ];
+        let payload = IssueRequest::from(&report);
+        assert!(payload.body.contains("Recent logs:\n`````\n"));
+        assert!(payload.body.ends_with("\n`````"));
+        assert!(payload.body.contains("```example```"));
+        assert!(payload.body.contains("````4-backtick````"));
     }
 
     #[test]
