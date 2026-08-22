@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [0.0.4] - 2026-08-22
+
+### Added
+
+* Crash reports now include the crash type, operating system, and optional application version.
+* Optionally attach a bounded set of recent log entries to crash reports.
+* Added configuration for application version and recent-log collection.
+
 ## [0.0.3] - 2026-08-21
 
 ### Changed
