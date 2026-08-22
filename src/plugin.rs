@@ -56,6 +56,9 @@ impl CrashCapturePlugin {
     }
 
     /// Attaches the most recent log lines from a `RecentLogsLayer` to every report.
+    ///
+    /// Only populated for panics. Native crashes run in a separate watcher process that never
+    /// executed your game's logging, so `CrashReport::recent_logs` is always empty for those.
     #[cfg(feature = "recent-logs")]
     pub fn with_recent_logs(mut self, handle: RecentLogsHandle) -> Self {
         self.recent_logs = Some(handle);
